@@ -8,7 +8,13 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_startup_system(add_initial_objects)
         .add_system(update_acceleration)
+        .add_system(update_forward_euler.after(update_acceleration))
+        .add_system_to_stage(CoreStage::PostUpdate, print_status)
         .run()
+}
+
+fn print_status() {
+
 }
 
 fn add_initial_objects(mut commands: Commands) {
@@ -100,16 +106,16 @@ fn update_acceleration(
         .fold(
             Acceleration::zero(),
             |mut acc, &origin_entity, [origin, target]| {
-            let target_entity: Entity = target.0;
-            if origin_entity == target_entity {
-                return acc;
-            }
-            let target_mass: &Mass = target.1;
+                let target_entity: Entity = target.0;
+                if origin_entity == target_entity {
+                    return acc;
+                }
+                let target_mass: &Mass = target.1;
                 // let target_position: &Position = target.2;
                 let direction = origin.2 .0 - target.2 .0;
                 let distance = direction.length().powi(3);
                 acc.0 -= GRAVITY_CONSTANT * target_mass.0 * direction / distance;
-            acc
+                acc
             },
         );
     // apply
@@ -118,4 +124,15 @@ fn update_acceleration(
     })
 }
 
+fn update_forward_euler(
+    time: Res<Time>,
+    mut q_objects: Query<(&mut Position, &mut Velocity, &Acceleration)>,
+) {
+    // x_{k+1} = x_k + v_k × \delta t
+    // v_{k+1} = v_k + a_k × \delta t
+    let delta_t = time.delta_seconds_f64();
+    q_objects.for_each_mut(|(mut pos, mut vel, acc)| {
+        pos.0 += vel.0 * delta_t;
+        vel.0 += acc.0 * delta_t;
+    });
 }
