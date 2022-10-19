@@ -103,7 +103,8 @@ fn update_acceleration(
             }
             let target_mass: &Mass = target.1;
             let target_position: &Position = target.2;
-            let direction = origin.2.
+            // let direction = origin.2.
+            
             // skip
             // acc -= GRAVITY_CONSTANT * target_mass * direction / distance;
             acc
