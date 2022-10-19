@@ -1,4 +1,6 @@
-use bevy::prelude::*;
+use std::collections;
+
+use bevy::{math::DVec2, prelude::*};
 use itertools::Itertools;
 
 fn main() {
@@ -56,57 +58,64 @@ fn add_initial_objects(mut commands: Commands) {
 }
 
 #[derive(Debug, Component)]
-struct Mass;
+struct Mass(f64);
 impl Mass {
     fn new(arg: f64) -> Self {
-        todo!()
+        Self(arg)
     }
 }
 #[derive(Debug, Component)]
-struct Position;
+struct Position(DVec2);
 impl Position {
     fn new_x(arg: f64) -> Self {
-        todo!()
+        Self(DVec2::new(arg, 0.))
     }
 }
 #[derive(Debug, Component)]
-struct Velocity;
+struct Velocity(DVec2);
 impl Velocity {
     fn new_y(arg: f64) -> Self {
-        todo!()
+        Self(DVec2::new(0., arg))
     }
 }
 #[derive(Debug, Clone, Component)]
-struct Acceleration;
+struct Acceleration(DVec2);
 
 impl Acceleration {
     fn zero() -> Self {
-        todo!()
+        Self(DVec2::ZERO)
     }
 }
 
 const GRAVITY_CONSTANT: f64 = 6.67e-11;
 
-///
 fn update_acceleration(
     q_objects: Query<(Entity, &Mass, &Position)>,
-    // q_acceleration: Query<&mut Acceleration>,
+    mut q_acceleration: Query<(Entity, &mut Acceleration)>,
 ) {
     // calculate the new acceleration
-    q_objects
+    let new_acceleration: collections::HashMap<Entity, Acceleration> = q_objects
         .iter_combinations::<2>()
         .into_grouping_map_by(|[origin, _target]| -> Entity { origin.0 })
-        .fold(Acceleration::zero(), |acc, &origin_entity, [origin, target]| {
+        .fold(
+            Acceleration::zero(),
+            |mut acc, &origin_entity, [origin, target]| {
             let target_entity: Entity = target.0;
             if origin_entity == target_entity {
                 return acc;
             }
             let target_mass: &Mass = target.1;
-            let target_position: &Position = target.2;
-            // let direction = origin.2.
-            
-            // skip
-            // acc -= GRAVITY_CONSTANT * target_mass * direction / distance;
+                // let target_position: &Position = target.2;
+                let direction = origin.2 .0 - target.2 .0;
+                let distance = direction.length().powi(3);
+                acc.0 -= GRAVITY_CONSTANT * target_mass.0 * direction / distance;
             acc
-        });
+            },
+        );
+    // apply
+    q_acceleration.for_each_mut(|(entity, mut acc)| {
+        acc.0 = new_acceleration[&entity].0;
+    })
+}
+
 }
