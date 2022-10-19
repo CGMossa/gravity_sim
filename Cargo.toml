@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 bevy = { branch = "main", git = "https://github.com/bevyengine/bevy.git" }
+itertools = "0.10.5"
