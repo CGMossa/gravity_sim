@@ -1,3 +1,9 @@
+//! Tasks
+//!
+//! - [ ] Add softening parameter
+//! - [ ] Add quality check calculations.
+//! - [ ] Add visuals
+#![allow(dead_code)]
 use std::collections;
 
 use bevy::{diagnostic::LogDiagnosticsPlugin, math::DVec2, prelude::*, time::FixedTimestep};
@@ -5,6 +11,11 @@ use itertools::Itertools;
 
 fn main() {
     App::new()
+        .insert_resource(WindowDescriptor {
+            width: 640.,
+            height: 360.,
+            ..Default::default()
+        })
         .add_plugins(DefaultPlugins)
         .add_startup_system(add_initial_objects)
         //TODO: add `Acceleration` to the initial objects.. And maybe `Jerk`.
@@ -13,8 +24,9 @@ fn main() {
             "amend",
             SystemStage::single_threaded().with_system(amend_objects),
         )
-        .add_system(update_acceleration)
-        .add_system(update_forward_euler.after(update_acceleration))
+        .add_startup_system_to_stage(StartupStage::PostStartup, setup_planets)
+        // .add_system(update_acceleration)
+        // .add_system(update_forward_euler.after(update_acceleration))
         .add_stage_after(
             CoreStage::Last,
             "info",
@@ -22,6 +34,42 @@ fn main() {
         )
         .add_system_to_stage("info", print_status)
         .run()
+}
+
+fn setup_planets(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    q_planets: Query<(Entity, &Mass, &Position, &SizeCategory)>,
+    window_info: Res<WindowDescriptor>,
+) {
+    commands.spawn(Camera2dBundle::default());
+
+    // index this with `SizeCategory`
+    // [1] 3 2 5 1 4
+    let sizes = [
+        1000., //None
+        3.,    // earth.gif
+        2.5,   // mars.gif
+        10.,   // mercury.gif
+        25.,   // sun.gif
+        3.,    // venus.gif
+    ];
+
+    q_planets.for_each(|(entity, mass, position, size_category)| {
+        // let radius = mass.0 as _;
+        let radius = sizes[size_category.0];
+        let position = position.0 / UNIVERSE_RADIUS;
+        todo!();
+        commands
+            .entity(entity)
+            .insert(bevy::sprite::MaterialMesh2dBundle {
+                mesh: meshes.add(shape::Circle::new(radius).into()).into(),
+                material: materials.add(ColorMaterial::from(Color::SILVER)),
+                transform: Transform::from_translation(Vec3::new(10., 50., 0.)),
+                ..default()
+            });
+    });
 }
 
 fn print_status() {
@@ -47,35 +95,46 @@ fn add_initial_objects(mut commands: Commands) {
     // N particles
     // size of the universe
     // positions x,y velocity x,y mass, asset name
+    //> planets[, "m"]
+    // [1] 5.974e+24 6.419e+23 3.302e+23 1.989e+30
+    // [5] 4.869e+24
+    // > planets[, "m"] %>%
+    // +   order()
+    // [1] 3 2 5 1 4
     commands.spawn((
         Position::new_x(1.4960e+11),
         Velocity::new_y(2.9800e+04),
         Mass::new(5.9740e+24),
         // "earth.gif",
+        SizeCategory::new(3),
     ));
     commands.spawn((
         Position::new_x(2.2790e+11),
         Velocity::new_y(2.4100e+04),
         Mass::new(6.4190e+23),
         // "mars.gif",
+        SizeCategory::new(2),
     ));
     commands.spawn((
         Position::new_x(5.7900e+10),
         Velocity::new_y(4.7900e+04),
         Mass::new(3.3020e+23),
         // "mercury.gif",
+        SizeCategory::new(5),
     ));
     commands.spawn((
         Position::new_x(0.0000e+00),
         Velocity::new_y(0.0000e+00),
         Mass::new(1.9890e+30),
         // "sun.gif",
+        SizeCategory::new(1),
     ));
     commands.spawn((
         Position::new_x(1.0820e+11),
         Velocity::new_y(3.5000e+04),
         Mass::new(4.8690e+24),
         // "venus.gif",
+        SizeCategory::new(4),
     ));
 }
 
@@ -85,6 +144,15 @@ fn amend_objects(mut commands: Commands, q_objects: Query<Entity, With<Position>
             .entity(entity)
             .insert((Acceleration::zero(), Jerk::zero()));
     });
+}
+
+#[derive(Debug, Component)]
+struct SizeCategory(usize);
+
+impl SizeCategory {
+    fn new(arg: usize) -> Self {
+        Self(arg)
+    }
 }
 
 #[derive(Debug, Component)]
@@ -132,6 +200,7 @@ impl Jerk {
 }
 
 const GRAVITY_CONSTANT: f64 = 6.67e-11;
+const UNIVERSE_RADIUS: f64 = 2.50e-11;
 
 fn update_acceleration(mut q_objects: Query<(Entity, &Mass, &Position, &mut Acceleration)>) {
     // reset acceleration
