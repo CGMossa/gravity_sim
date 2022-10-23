@@ -45,6 +45,10 @@ fn setup_planets(
 ) {
     commands.spawn(Camera2dBundle::default());
 
+
+    //TODO: do it differently.. provide non-decreasing list of sizes, and
+    // reorder it according to the index given by `SizeCategory`.
+    
     // index this with `SizeCategory`
     // [1] 3 2 5 1 4
     let sizes = [
